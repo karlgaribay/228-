@@ -6,12 +6,23 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(DeclareDesign)
+library(truncnorm) #for truncated distribution
+library(knitr)
+library(ggplot2)
+library(kableExtra)
 ```
 
+## Declare_population()
 
-```{r cars}
-summary(cars)
+```{r population, echo=TRUE}
+set.seed(228) #Setting seed for randomization
+population <- declare_population(
+  village = add_level(N=500, #The population consists of 500 waterways.
+    water_quality_index=rtruncnorm(n=N, a=0.38, b=8.21, 
+                            mean=1.1, sd=0.1), 
+    u=rnorm(n=N, mean=-13.4, sd=13.4)) #waterway-level variability (for calculating the treatment effect
+)
 ```
 
 
