@@ -59,9 +59,9 @@ This functions allows you to declare the characteristics of the population that 
 set.seed(228) #Setting seed for randomization
 population <- declare_population(
   waterways = add_level(N=500, #The population consists of 500 villages.
-    tree_cover_ha=rtruncnorm(n=N, a=40, b=400, 
-                            mean=140, sd=145), #Each village has some baseline level of twater quality. We're assuming that water quality across all streams follows a truncated normal distribution -- one that does not exceed 40 and 400 at its tails, and has a mean of 140 ha and a standard deviation of 145 ha.
-    u=rnorm(n=N, mean=-13.4, sd=13.4)) #Village-level variability (for calculating the treatment effect -- see below).
+    water_quality=rtruncnorm(n=N, a=0.38, b=8.21, 
+                            mean=1.1, sd=0.1), #Each village has some baseline level of twater quality. We're assuming that water quality across all streams follows a truncated normal distribution -- one that does not exceed 40 and 400 at its tails, and has a mean of 140 ha and a standard deviation of 145 ha.
+    u=rnorm(n=N, mean=1.1, sd=0.1)) #water-level variability (for calculating the treatment effect -- see below).
 )
 ```
 
@@ -72,7 +72,7 @@ population <- declare_population(
 
 ```{r population-see, echo=TRUE, fig.height=5.5}
 pop <- population() #PH This line delcares our population. Youd should be able to open up the pop object as a df and see the units we just defined.
-hist(pop[,2], xlab="Baseline Forest Cover (ha)", 
+hist(pop[,2], xlab="Baseline Water Quality", 
      main="Baseline", cex=24) #Plots histogram of baseline tree cover across the population. Note the truncated normal distribution.
 ```
 
@@ -83,11 +83,11 @@ The next step is to declare the full schedule of potential outcomes $Y(1)$ and $
 - Recall that in Jayachandran et al. (2017), tree cover decreased by 13.4 ha in the control group and 7.9 ha in the treatment group.
 
 ```{r po, echo=TRUE}
-eff_size <- 5.5 #PH: In the Jayachandran et al study, the treated villages displayed ~5.5 ha more forest cover than the control villages. Thus, the ATE = 5.5.
+eff_size <- -0.19 #PH: In the Jayachandran et al study, the treated villages displayed ~5.5 ha more forest cover than the control villages. Thus, the ATE = 5.5.
 potential_outcomes <- 
   declare_potential_outcomes(
-    Y_D_0=tree_cover_ha + u,
-    Y_D_1=tree_cover_ha + eff_size + u) #PH: Here, we're specifying each unit's potential outcomes under treatment (Y_D_1) and control (Y_D_0). A unit's treated potential outcome is equal to their baseline level of tree cover, plus the increase in tree cover produced by treatment, plus some unit-level variability in its change in tree cover from baseline to endline. A unit's untreated potential outcome is the same, minus the increase in tree cover produced by treatment (i.e., no treatment effect).
+    Y_D_0=water_quality + u,
+    Y_D_1=water_quality + eff_size + u) #PH: Here, we're specifying each unit's potential outcomes under treatment (Y_D_1) and control (Y_D_0). A unit's treated potential outcome is equal to their baseline level of tree cover, plus the increase in tree cover produced by treatment, plus some unit-level variability in its change in tree cover from baseline to endline. A unit's untreated potential outcome is the same, minus the increase in tree cover produced by treatment (i.e., no treatment effect).
 ```
 
 
@@ -130,7 +130,7 @@ prop.table(table(assigned$D)) #PH: Checking that the randomization was good. Thi
 At this stage, it's possible to look at balance in the baseline tree cover characteristics, since random assignment has occured.
 
 ```{r violin, echo=FALSE, fig.height=6}
-ggplot(data=assigned, aes(x=as.factor(D), y=tree_cover_ha)) +
+ggplot(data=assigned, aes(x=as.factor(D), y=water_quality)) +
 geom_violin(aes(fill=as.factor(D), color=as.factor(D))) +
 theme_minimal(base_size = 24) + xlab("Assignment")
 ```
@@ -148,7 +148,7 @@ revealing <- declare_reveal(assignment_variables=D) #PH: This line of code tells
 At this stage, we specify our target *estimand*, which is the quantity that we are trying to recover when estimating impact. Recall that we set this value to **5.5** in line with Jayachandran et al. (2017).
 
 ```{r estimand, echo=TRUE}
-estimand <- declare_inquiry(ATE = eff_size) #PH: We're declaring our estimand here, which is equal to the effect size (5.5, or the treatment effect from the Jayachandran et al. sutdy.)
+estimand <- declare_inquiry(ATE = eff_size) #PH: We're declaring our estimand here, which is equal to the effect size (-0.19, or the treatment effect from the Jayachandran et al. sutdy.)
 estimand(po)
 ```
 
@@ -165,7 +165,7 @@ dim <- declare_estimator(Y ~ D, #PH: Difference in means estimator because this 
                          model = difference_in_means, 
                          label = "DIM")
 
-did <- declare_estimator(Y - tree_cover_ha ~ D, #PH: Differences in differences estimator because this equation estimates the difference in the difference between endline and basline tree cover between treatement and control villages.
+did <- declare_estimator(Y - water_quality ~ D, #PH: Differences in differences estimator because this equation estimates the difference in the difference between endline and basline tree cover between treatement and control villages.
                          inquiry = estimand,
                          model = difference_in_means, 
                          label = "DID")
@@ -196,18 +196,18 @@ diagnosis$diagnosands_df[,c(1,3,5,9,11)] %>%
 ## Looking under the hood, DIM
 
 ```{r underhood-dim, height=6, echo=FALSE}
-sim.out <- diagnosis$simulations
+sim.out <- diagnosis$simulations 
 hist(sim.out$estimate[sim.out$estimator=="DIM"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(-60,70), cex=24)
-abline(v=5.5, lwd=3, col="red")
+     xlim=c(0.38,8.21), cex=24)
+abline(v=0.19, lwd=3, col="red") 
 ```
 
 ## Looking under the hood, DID
 
 ```{r underhood-did, height=6, echo=FALSE}
-sim.out <- diagnosis$simulations
+sim.out <- diagnosis$simulations # same with this one
 hist(sim.out$estimate[sim.out$estimator=="DID"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
@@ -220,7 +220,7 @@ abline(v=5.5, lwd=3, col="red")
 That's not enough power. Let's increase the sample size.
 
 ```{r more-sample}
-samp_size <- 500 #PH: Redefining our sample size to 500 villages.
+samp_size <- 100 #PH: Redefining our sample size to 100 waterways
 sampling2 <- 
   declare_sampling(S = draw_rs(N=N, n=samp_size)) #PH: Re-specifying sampling strategy.
 design2 <- population + potential_outcomes + sampling2 +
@@ -264,8 +264,8 @@ abline(v=5.5, lwd=3, col="red")
 What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
 ```{r other-sample-sizes1}
 diagnoses <- design %>% 
-  redesign(samp_size=seq(100,1000,100)) %>% 
-  diagnose_design(sims=250)
+  redesign(samp_size=seq(20,100,20)) %>% 
+  diagnose_design(sims=150)
 ```
 
 ## redesign()
@@ -273,9 +273,9 @@ What is the minimum sample size required to conduct a sufficiently powered evalu
 ```{r other-sample-sizes2, height=6, echo=FALSE}
 diagnoses$diagnosands_df %>%
   ggplot(aes(x=samp_size,y=power)) +
-  geom_hline(aes(yintercept=0.8), lty="dotted", col="red", size=0.5) +
+  geom_hline(aes(yintercept=1.1), lty="dotted", col="red", size=0.5) +
   geom_point() +
-  scale_y_continuous(limits=c(0, 1)) +
+  scale_y_continuous(limits=c(0, 2)) +
   theme(text=element_text(size=13)) +
   facet_grid(.~estimator)
 ```
