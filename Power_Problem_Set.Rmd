@@ -158,7 +158,7 @@ abline(v=-0.19, lwd=3, col="red")
 ## modify_design()
 
 ```{r more-sample}
-samp_size <- 500 #PH: Redefining our sample size to 500 waterways
+samp_size <- 1000 #PH: Redefining our sample size to 1000 waterways
 sampling2 <- 
   declare_sampling(S = draw_rs(N=N, n=samp_size)) #Re-specifying sampling strategy.
 design2 <- population + potential_outcomes + sampling2 +
@@ -202,7 +202,7 @@ abline(v=-0.19, lwd=3, col="red")
 What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
 ```{r other-sample-sizes1}
 diagnoses <- design %>% 
-  redesign(samp_size=seq(100,500,100)) %>% 
+  redesign(samp_size=seq(100,1000,100)) %>% 
   diagnose_design(sims=250)
 ```
 
