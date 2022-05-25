@@ -245,3 +245,6 @@ diagnoses2$diagnosands_df %>% # trouble here
   theme(text=element_text(size=13)) +
   facet_grid(.~estimator)
 ```
+
+
+
