@@ -130,6 +130,8 @@ design <- population + potential_outcomes + sampling +
 diagnosis <- diagnose_design(design, sims=1000) #Diagnosing the design over 1000 simulations to estimate bias and to calculate power.
 diagnosis$diagnosands_df[,c(1,3,5,9,11)] %>%
   kable() 
+
+diagnosis
 ```
 
 
@@ -158,7 +160,7 @@ abline(v=-0.19, lwd=3, col="red")
 ## modify_design()
 
 ```{r more-sample}
-samp_size <- 1000 #PH: Redefining our sample size to 1000 waterways
+samp_size <- 200 #Redefining our sample size to 200 waterways
 sampling2 <- 
   declare_sampling(S = draw_rs(N=N, n=samp_size)) #Re-specifying sampling strategy.
 design2 <- population + potential_outcomes + sampling2 +
@@ -167,12 +169,14 @@ design2 <- population + potential_outcomes + sampling2 +
 
 ## diagnose_design()
 
-Diagnosing the design with 5 times the initial sample size
+Diagnosing the design with twice the initial sample size
 
 ```{r diagnosis2}
 diagnosis2 <- diagnose_design(design2, sims=1000) #Diagnosing the design over 1000 simulations to estimate bias and to calculate power.
 diagnosis2$diagnosands_df[,c(1,3,5,9,11)] %>%
   kable()
+
+diagnosis2
 ```
 
 
@@ -202,8 +206,10 @@ abline(v=-0.19, lwd=3, col="red")
 What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
 ```{r other-sample-sizes1}
 diagnoses <- design %>% 
-  redesign(samp_size=seq(100,1000,100)) %>% 
-  diagnose_design(sims=250)
+  redesign(samp_size=seq(10,100,5)) %>% 
+  diagnose_design(sims=100)
+
+diagnoses
 ```
 
 ## redesign()
@@ -223,8 +229,9 @@ diagnoses$diagnosands_df %>% # and here
 How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
 ```{r other-mde1}
 diagnoses2 <- design %>% 
-  redesign(eff_size=seq(1, 20, 2)) %>% 
-  diagnose_design(sims=250)
+  redesign(eff_size=seq(-0.2, 0, 0.02)) %>% 
+  diagnose_design(sims=100)
+
 ```
 
 ## redesign()
