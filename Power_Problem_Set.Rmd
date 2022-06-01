@@ -21,7 +21,7 @@ population <- declare_population(
   village = add_level(N=500, #The population consists of 500 waterways.
     water_quality=rtruncnorm(n=N, a=0.38, b=8.21, 
                             mean=1.1, sd=0.1), 
-    u=rnorm(n=N, mean=1.1, sd=0.1)) #waterway-level variability (for calculating the treatment effect
+    u=rnorm(n=N, mean=1.1, sd=0.1)) #waterway-level variability (for calculating the treatment effect rgardless of whether or not it is included in the prgram
 )
 ```
 
@@ -41,8 +41,8 @@ Declare the full schedule of potential outcomes $Y(1)$ and $Y(0)$ under an assum
 eff_size <- -0.19 #The treated waterways displayed a -0.19 lower water quality index 
 potential_outcomes <- 
   declare_potential_outcomes(
-    Y_D_0=water_quality + u,
-    Y_D_1=water_quality + eff_size + u) 
+    Y_D_0=water_quality * u, # because u is a rate of change and ot an absolute change, we need to multiply water quality by u
+    Y_D_1=water_quality * u + eff_size)
 ```
 
 
@@ -131,7 +131,7 @@ diagnosis <- diagnose_design(design, sims=1000) #Diagnosing the design over 1000
 diagnosis$diagnosands_df[,c(1,3,5,9,11)] %>%
   kable() 
 
-diagnosis
+diagnosis # power is 1 for both DIM and DID 
 ```
 
 
@@ -176,7 +176,7 @@ diagnosis2 <- diagnose_design(design2, sims=1000) #Diagnosing the design over 10
 diagnosis2$diagnosands_df[,c(1,3,5,9,11)] %>%
   kable()
 
-diagnosis2
+diagnosis2 #power is 1 for both DIM and DID 
 ```
 
 
@@ -209,7 +209,7 @@ diagnoses <- design %>%
   redesign(samp_size=seq(10,100,5)) %>% 
   diagnose_design(sims=100)
 
-diagnoses
+diagnoses #
 ```
 
 ## redesign()
