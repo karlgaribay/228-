@@ -59,8 +59,7 @@ This functions allows you to declare the characteristics of the population that 
 set.seed(228) #Setting seed for randomization
 population <- declare_population(
   waterways = add_level(N=500, #The population consists of 500 villages.
-    water_quality=rtruncnorm(n=N, a=0.38, b=8.21, 
-                            mean=1.1, sd=0.1), #Each village has some baseline level of twater quality. We're assuming that water quality across all streams follows a truncated normal distribution -- one that does not exceed 40 and 400 at its tails, and has a mean of 140 ha and a standard deviation of 145 ha.
+    water_quality=runif(n=N, min=0.38, max=8.21), #Each village has some baseline level of twater quality. We're assuming that water quality across all streams follows a truncated normal distribution -- one that does not exceed 40 and 400 at its tails, and has a mean of 140 ha and a standard deviation of 145 ha.
     u=rnorm(n=N, mean=1.1, sd=0.1)) #water-level variability (for calculating the treatment effect -- see below).
 )
 ```
@@ -86,8 +85,8 @@ The next step is to declare the full schedule of potential outcomes $Y(1)$ and $
 eff_size <- -0.19 #PH: In the Jayachandran et al study, the treated villages displayed ~5.5 ha more forest cover than the control villages. Thus, the ATE = 5.5.
 potential_outcomes <- 
   declare_potential_outcomes(
-    Y_D_0=water_quality + u,
-    Y_D_1=water_quality + eff_size + u) #PH: Here, we're specifying each unit's potential outcomes under treatment (Y_D_1) and control (Y_D_0). A unit's treated potential outcome is equal to their baseline level of tree cover, plus the increase in tree cover produced by treatment, plus some unit-level variability in its change in tree cover from baseline to endline. A unit's untreated potential outcome is the same, minus the increase in tree cover produced by treatment (i.e., no treatment effect).
+    Y_D_0=water_quality*u,
+    Y_D_1=water_quality*u+eff_size) #PH: Here, we're specifying each unit's potential outcomes under treatment (Y_D_1) and control (Y_D_0). A unit's treated potential outcome is equal to their baseline level of tree cover, plus the increase in tree cover produced by treatment, plus some unit-level variability in its change in tree cover from baseline to endline. A unit's untreated potential outcome is the same, minus the increase in tree cover produced by treatment (i.e., no treatment effect).
 ```
 
 
@@ -200,7 +199,7 @@ sim.out <- diagnosis$simulations
 hist(sim.out$estimate[sim.out$estimator=="DIM"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(-0.08,-0.288), cex=24)
+     xlim=c(-2,2), cex=24)
 abline(v=-0.19, lwd=3, col="red") 
 ```
 
@@ -211,7 +210,7 @@ sim.out <- diagnosis$simulations
 hist(sim.out$estimate[sim.out$estimator=="DID"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(-0.125,-0.265), cex=24)
+     xlim=c(-0.7,0.3), cex=24)
 abline(v=-0.19, lwd=3, col="red")
 ```
 
@@ -245,7 +244,7 @@ sim.out <- diagnosis2$simulations
 hist(sim.out$estimate[sim.out$estimator=="DIM"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(-0.10,-0.32), cex=24)
+     xlim=c(-2.5,2), cex=24)
 abline(v=-0.19, lwd=3, col="red")
 ```
 
@@ -256,7 +255,7 @@ sim.out <- diagnosis2$simulations
 hist(sim.out$estimate[sim.out$estimator=="DID"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(-0.125,-0.265), cex=24)
+     xlim=c(-0.7,0.3), cex=24)
 abline(v=-0.19, lwd=3, col="red")
 ```
 
@@ -271,9 +270,9 @@ diagnoses <- design %>%
 ## redesign()
 What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
 ```{r other-sample-sizes2, height=6, echo=FALSE}
-diagnoses$diagnosands_df %>% # and here
+diagnoses$diagnosands_df %>% 
   ggplot(aes(x=samp_size,y=power)) +
-  geom_hline(aes(yintercept=1.1), lty="dotted", col="red", size=0.5) +
+  geom_hline(aes(yintercept=1), lty="dotted", col="red", size=0.5) +
   geom_point() +
   scale_y_continuous(limits=c(0, 2)) +
   theme(text=element_text(size=13)) +
@@ -285,7 +284,7 @@ diagnoses$diagnosands_df %>% # and here
 How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
 ```{r other-mde1}
 diagnoses2 <- design %>% 
-  redesign(eff_size=seq(1, 20, 2)) %>% 
+  redesign(eff_size=seq(0.1, 2, 0.1)) %>% 
   diagnose_design(sims=250)
 ```
 
@@ -296,7 +295,7 @@ diagnoses2$diagnosands_df %>% # trouble here
   ggplot(aes(x=eff_size,y=power)) +
   geom_hline(aes(yintercept=0.8), lty="dotted", col="red", size=0.5) +
   geom_point() +
-  scale_y_continuous(limits=c(0, 1)) +
+  scale_y_continuous(limits=c(0, 2)) +
   theme(text=element_text(size=13)) +
   facet_grid(.~estimator)
 ```
