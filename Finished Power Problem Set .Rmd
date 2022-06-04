@@ -1,0 +1,301 @@
+---
+title: "Power Problem Set - Finished"
+author: "Chase Tarr"
+date: "6/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(DeclareDesign)
+library(truncnorm) #for truncated distribution
+library(knitr)
+library(ggplot2)
+library(kableExtra)
+```
+
+## Declare_population()
+
+```{r population, echo=TRUE}
+set.seed(228) #Setting seed for randomization
+population <- declare_population(
+  village = add_level(N=500, #The population consists of 500 waterways.
+    water_quality_index=rtruncnorm(n=N, a=0.38, b=8.21, 
+                            mean=1.1, sd=0.1), 
+    u=rnorm(n=N, mean=-13.4, sd=13.4)) #waterway-level variability (for calculating the treatment effect
+)
+```
+
+# from coding demo
+
+## Preliminaries
+
+Get R package *DeclareDesign* at declaredesign.org
+
+```{r load, echo=TRUE, warning=FALSE}
+#PH: This chunk loads in the packages required to conduct a power analysis in the DeclareDesign framework.
+rm(list=c()) #PH: This line clears your working environment.
+library(DeclareDesign)
+library(truncnorm) #for truncated distribution
+library(knitr)
+library(ggplot2)
+library(kableExtra)
+```
+
+## Existing knowledge about outcome data, descriptives
+
+![Jayachandran et al. 2017, Table 1](./figures/11-tab1.png){height=60%}
+
+## Existing knowledge about outcome data, impact
+
+![Jayachandran et al. 2017, Table 3](./figures/11-tab3.png){height=50%}
+
+
+## declare_population()
+
+This functions allows you to declare the characteristics of the population that you want to study.
+
+```{r population, echo=TRUE}
+#PH: This chunk defines our population of interest.
+set.seed(228) #Setting seed for randomization
+population <- declare_population(
+  waterways = add_level(N=500, #The population consists of 500 villages.
+    water_quality=runif(n=N, min=0.38, max=8.21), #Each village has some baseline level of twater quality. We're assuming that water quality across all streams follows a truncated normal distribution -- one that does not exceed 40 and 400 at its tails, and has a mean of 140 ha and a standard deviation of 145 ha.
+    u=rnorm(n=N, mean=1.1, sd=0.1)) #water-level variability (for calculating the treatment effect -- see below).
+)
+```
+
+*Note:* in this example, I've played with the distribution to approximate the baseline tree cover (ha) using the Jayachandran et al. (2017) descriptive statistics.
+
+
+## Population descriptives
+
+```{r population-see, echo=TRUE, fig.height=5.5}
+pop <- population() #PH This line delcares our population. Youd should be able to open up the pop object as a df and see the units we just defined.
+hist(pop[,2], xlab="Baseline Water Quality", 
+     main="Baseline", cex=24) #Plots histogram of baseline tree cover across the population. Note the truncated normal distribution.
+```
+
+## declare_potential_outcomes()
+
+The next step is to declare the full schedule of potential outcomes $Y(1)$ and $Y(0)$ under an assumption about the effect size of interest.
+
+- Recall that in Jayachandran et al. (2017), tree cover decreased by 13.4 ha in the control group and 7.9 ha in the treatment group.
+
+```{r po, echo=TRUE}
+eff_size <- -0.19 #PH: In the Jayachandran et al study, the treated villages displayed ~5.5 ha more forest cover than the control villages. Thus, the ATE = 5.5.
+potential_outcomes <- 
+  declare_potential_outcomes(
+    Y_D_0=water_quality*u,
+    Y_D_1=water_quality*u+eff_size) #PH: Here, we're specifying each unit's potential outcomes under treatment (Y_D_1) and control (Y_D_0). A unit's treated potential outcome is equal to their baseline level of tree cover, plus the increase in tree cover produced by treatment, plus some unit-level variability in its change in tree cover from baseline to endline. A unit's untreated potential outcome is the same, minus the increase in tree cover produced by treatment (i.e., no treatment effect).
+```
+
+
+## Potential outcomes descriptives
+
+```{r po-see, echo=TRUE}
+po <- potential_outcomes(pop) #PH: Here, we're declaring the potential outcomes.
+kable(po[1:5,], digits=1)
+```
+
+
+## declare_sampling()
+
+Next, we want to select the sample size. Let's start with 100 villages (recall that the actual study used 120 villages)
+
+```{r sample, echo=TRUE}
+samp_size <- 100 #PH: Start with a sample size of 100.
+sampling <- 
+  declare_sampling(S = draw_rs(N=N, n=samp_size)) #PH: Here, we're specifying our sample. Specifically, we're telling DeclareDesign to add a new column named "S" that is N units (1000) long to the pop df, and to populate that column with a random sample of units equal to samp_size, or 100.
+sam <- sampling(po) #PH: Delcaring sampling protocol.
+kable(sam[1:5,c(1:2,4:6)], row.names = FALSE,
+      digits = 1)
+```
+
+
+## declare_assignment()
+
+This step declares the random assignment process. There are many complexities, but let's stick to *complete assignment* of exactly half the units at this stage.
+
+```{r assign, echo=TRUE}
+assigning <- 
+  declare_assignment(D = conduct_ra(N=N, prob=0.5)) #PH: Here, we're specifying our treatment assignment process. We're using simple, complete random assignment where each unit in our sample of 100 has an equal probability of being assigned to treatment and control. In expectation, we should get 50 treated and 50 control villages from this code.
+assigned <- assigning(sam) #PH: Delcaring randomization.
+prop.table(table(assigned$D)) #PH: Checking that the randomization was good. This shows that 50% of our villages are in treatment, and 50% of them are in control.
+```
+
+
+## Assessing balance
+
+At this stage, it's possible to look at balance in the baseline tree cover characteristics, since random assignment has occured.
+
+```{r violin, echo=FALSE, fig.height=6}
+ggplot(data=assigned, aes(x=as.factor(D), y=water_quality)) +
+geom_violin(aes(fill=as.factor(D), color=as.factor(D))) +
+theme_minimal(base_size = 24) + xlab("Assignment")
+```
+
+## declare_reveal()
+
+This step declares how the potential outcomes are revealed by the random assignment
+
+```{r reveal, echo=TRUE}
+revealing <- declare_reveal(assignment_variables=D) #PH: This line of code tells DeclareDesign to reveal each sampled unit's potential outcomes based on their assignment to treatment.
+```
+
+## declare_inquiry()
+
+At this stage, we specify our target *estimand*, which is the quantity that we are trying to recover when estimating impact. Recall that we set this value to **5.5** in line with Jayachandran et al. (2017).
+
+```{r estimand, echo=TRUE}
+estimand <- declare_inquiry(ATE = eff_size) #PH: We're declaring our estimand here, which is equal to the effect size (-0.19, or the treatment effect from the Jayachandran et al. sutdy.)
+estimand(po)
+```
+
+
+## declare_estimator()
+
+Next, we declare the estimators we use for recovering the estimand. While there are many advanced estimators, we'll focus on the two core experimental estimators:
+1. difference-in-means
+2. difference-in-differences
+
+```{r estimator, echo=TRUE}
+dim <- declare_estimator(Y ~ D, #PH: Difference in means estimator because this equation is going to estimate the difference in the average level of endline tree cover between treatment and control villages.
+                         inquiry = estimand,
+                         model = difference_in_means, 
+                         label = "DIM")
+
+did <- declare_estimator(Y - water_quality ~ D, #PH: Differences in differences estimator because this equation estimates the difference in the difference between endline and basline tree cover between treatement and control villages.
+                         inquiry = estimand,
+                         model = difference_in_means, 
+                         label = "DID")
+```
+
+
+## declare_design()
+
+This function brings all of the parts of the process together in a single design and allows for each part of the design to be simulated repeatedly.
+
+```{r design, echo=TRUE}
+design <- population + potential_outcomes + sampling +
+          assigning + revealing + estimand + dim + did #PH: Bringing it all together; this call specifies our entire design from defining the population to specifying the estimators.
+```
+
+
+## diagnose_design()
+
+At this stage, we can calculate various features of the design that we have specified.
+
+```{r diagnosis, cache=TRUE}
+diagnosis <- diagnose_design(design, sims=1000) #PH: Diagnosing the design over 1000 simulations (to estimate bias and to calculate power.)
+diagnosis$diagnosands_df[,c(1,3,5,9,11)] %>%
+  kable() #PH: Note that the DiM estimator has much less power than the DiD estimator. What does that suggest about the spread of the randomization distributions underlying both estimation strategies?
+```
+
+
+## Looking under the hood, DIM
+
+```{r underhood-dim, height=6, echo=FALSE}
+sim.out <- diagnosis$simulations 
+hist(sim.out$estimate[sim.out$estimator=="DIM"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(-2,2), cex=24)
+abline(v=-0.19, lwd=3, col="red") 
+```
+
+## Looking under the hood, DID
+
+```{r underhood-did, height=6, echo=FALSE}
+sim.out <- diagnosis$simulations 
+hist(sim.out$estimate[sim.out$estimator=="DID"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(-0.7,0.3), cex=24)
+abline(v=-0.19, lwd=3, col="red")
+```
+
+## modify_design()
+
+That's not enough power. Let's increase the sample size.
+
+```{r more-sample}
+samp_size <- 100 #PH: Redefining our sample size to 100 waterways
+sampling2 <- 
+  declare_sampling(S = draw_rs(N=N, n=samp_size)) #PH: Re-specifying sampling strategy.
+design2 <- population + potential_outcomes + sampling2 +
+          assigning + revealing + estimand + dim + did #PH: Merging new sampling strategy into the DeclareDesign framework; note that all other features of the design (our estimators, randomization, etc.) remain unchanged.
+```
+
+## diagnose_design()
+
+Diagnosing the design with twice the sample size
+
+```{r diagnosis2}
+diagnosis2 <- diagnose_design(design2, sims=1000) #PH: Diagnosing the design over 1000 simulations (to estimate bias and to calculate power.)
+diagnosis2$diagnosands_df[,c(1,3,5,9,11)] %>%
+  kable()
+```
+
+
+## Looking under the hood, DIM
+
+```{r underhood-dim2, height=6, echo=FALSE}
+sim.out <- diagnosis2$simulations
+hist(sim.out$estimate[sim.out$estimator=="DIM"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(-2.5,2), cex=24)
+abline(v=-0.19, lwd=3, col="red")
+```
+
+## Looking under the hood, DID
+
+```{r underhood-did2, height=6, echo=FALSE}
+sim.out <- diagnosis2$simulations
+hist(sim.out$estimate[sim.out$estimator=="DID"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(-0.7,0.3), cex=24)
+abline(v=-0.19, lwd=3, col="red")
+```
+
+## redesign()
+What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
+```{r other-sample-sizes1}
+diagnoses <- design %>% 
+  redesign(samp_size=seq(20,100,20)) %>% 
+  diagnose_design(sims=150)
+```
+
+## redesign()
+What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
+```{r other-sample-sizes2, height=6, echo=FALSE}
+diagnoses$diagnosands_df %>% 
+  ggplot(aes(x=samp_size,y=power)) +
+  geom_hline(aes(yintercept=1), lty="dotted", col="red", size=0.5) +
+  geom_point() +
+  scale_y_continuous(limits=c(0, 2)) +
+  theme(text=element_text(size=13)) +
+  facet_grid(.~estimator)
+```
+
+
+## redesign()
+How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
+```{r other-mde1}
+diagnoses2 <- design %>% 
+  redesign(eff_size=seq(0.1, 2, 0.1)) %>% 
+  diagnose_design(sims=250)
+```
+
+## redesign()
+How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
+```{r other-mde2, height=6, echo=FALSE}
+diagnoses2$diagnosands_df %>% # trouble here
+  ggplot(aes(x=eff_size,y=power)) +
+  geom_hline(aes(yintercept=0.8), lty="dotted", col="red", size=0.5) +
+  geom_point() +
+  scale_y_continuous(limits=c(0, 2)) +
+  theme(text=element_text(size=13)) +
+  facet_grid(.~estimator)
+```
