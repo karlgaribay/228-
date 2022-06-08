@@ -1,0 +1,255 @@
+---
+title: "Problem Set 3"
+author: "Karla Garibay Garcia"
+date: "6/8/2022"
+output: html_document
+---
+```{r setup, include=FALSE}
+library(DeclareDesign)
+library(truncnorm) #for truncated distribution
+library(knitr)
+library(ggplot2)
+library(kableExtra)
+```
+
+## Declare_population()
+
+```{r population, echo=TRUE}
+set.seed(228) #Setting seed for randomization
+population <- declare_population(
+  fishery = add_level(N=500, #The population consists of 500 over exploited fisheries in Latin America and the Caribbean
+      fpi=rtruncnorm(n=N, a=1, b=5, #fpi score for fishery performance indicator mean score for all 68 unique metrics
+                            mean=2.0, sd=0.1), 
+    u=rnorm(n=N, mean= -0.1, sd=0.1)) #fishery-level variability for calculating the treatment effect. Need to ask Patrick whether this makes sense because idk how to arbitrarily pick this variability
+)
+```
+
+
+## Population descriptives
+
+```{r population-see, echo=TRUE, fig.height=5.5}
+pop <- population() #This line declares our population.
+hist(pop[,2], xlab="Baseline Fishery Performance", 
+     main="Baseline", cex=24) #Plots histogram of baseline fishery performance across the population. Note the truncated normal distribution.
+```
+
+## declare_potential_outcomes()
+
+
+```{r po, echo=TRUE}
+eff_size <- 1.5 #We believe the treated fisheries will have an FPI score that is higher by 1.5 than the control fisheries. Thus, the ATE = 1.5.
+potential_outcomes <- 
+  declare_potential_outcomes(
+    Y_D_0=fpi + u,
+    Y_D_1=fpi + u + eff_size) #Specifying each unit's potential outcomes under treatment (Y_D_1) and control (Y_D_0). A unit's treated potential outcome is equal to their baseline fpi score, plus the increase in fpi score produced by treatment, plus some unit-level variability in its change in fpi score from baseline to endline. A unit's untreated potential outcome is the same, minus the increase in fpi score produced by treatment (i.e., no treatment effect).
+```
+
+
+## Potential outcomes descriptives
+
+```{r po-see, echo=TRUE}
+po <- potential_outcomes(pop) #Declaring the potential outcomes.
+kable(po[1:5,], digits=1)
+```
+
+
+## declare_sampling()
+
+```{r sample, echo=TRUE}
+samp_size <- 50 #Start with a sample size of 50.
+sampling <- 
+  declare_sampling(S = draw_rs(N=N, n=samp_size)) 
+sam <- sampling(po) #Declaring sampling protocol.
+kable(sam[1:5,c(1:2,4:6)], row.names = FALSE,
+      digits = 1)
+```
+
+
+## declare_assignment()
+
+
+```{r assign, echo=TRUE}
+assigning <- 
+  declare_assignment(D = conduct_ra(N=N, prob=0.5)) #Specifying our treatment assignment process. We're using simple, complete random assignment where each unit in our sample of 100 has an equal probability of being assigned to treatment and control. In expectation, we should get 50 treated and 50 control villages from this code.
+assigned <- assigning(sam) #Declaring randomization.
+prop.table(table(assigned$D)) #Checking that the randomization was good. This shows that 50% of our fisheries are in treatment, and 50% of them are in control.
+```
+
+
+## Assessing balance
+
+```{r violin, echo=FALSE, fig.height=6}
+ggplot(data=assigned, aes(x=as.factor(D), y=fpi)) +
+geom_violin(aes(fill=as.factor(D), color=as.factor(D))) +
+theme_minimal(base_size = 24) + xlab("Assignment")
+```
+
+## declare_reveal()
+
+
+```{r reveal, echo=TRUE}
+revealing <- declare_reveal(assignment_variables=D) #This line of code tells DeclareDesign to reveal each sampled unit's potential outcomes based on their assignment to treatment.
+```
+
+## declare_inquiry()
+
+At this stage, we specify our target *estimand*, which is the quantity that we are trying to recover when estimating impact. We set this value to **1.5**
+
+```{r estimand, echo=TRUE}
+estimand <- declare_inquiry(ATE = eff_size) #Declaring our estimand here, which is equal to the effect size (1.5, or the treatment effect from receiving treatment.)
+estimand(po)
+```
+
+
+## declare_estimator()
+
+Next, we declare the estimators we use for recovering the estimand. While there are many advanced estimators, we'll focus on the two core experimental estimators:
+1. difference-in-means
+2. difference-in-differences
+
+```{r estimator, echo=TRUE}
+dim <- declare_estimator(Y ~ D, #Difference in means estimator because this equation is going to estimate the difference in the average level of endline fpi score between treatment and control fisheries.
+                         inquiry = estimand,
+                         model = difference_in_means, 
+                         label = "DIM")
+
+did <- declare_estimator(Y - fpi ~ D, #Differences in differences estimator because this equation estimates the difference in the difference between endline and baseline fpi score between treatment and control fisheries.
+                         inquiry = estimand,
+                         model = difference_in_means, 
+                         label = "DID")
+```
+
+
+## declare_design()
+
+This function brings all of the parts of the process together in a single design and allows for each part of the design to be simulated repeatedly.
+
+```{r design, echo=TRUE}
+design <- population + potential_outcomes + sampling +
+          assigning + revealing + estimand + dim + did #Bringing it all together; this call specifies our entire design from defining the population to specifying the estimators.
+```
+
+
+## diagnose_design()
+
+At this stage, we can calculate various features of the design that we have specified.
+
+```{r diagnosis, cache=TRUE}
+diagnosis <- diagnose_design(design, sims=1000) #Diagnosing the design over 1000 simulations (to estimate bias and to calculate power.)
+diagnosis$diagnosands_df[,c(1,3,5,9,11)] %>% #ask Patrick what these numbers are
+  kable() 
+
+diagnosis #Need to figure out why we're getting power of 1 already... Could it be the same error from the problem set?
+
+```
+
+
+## Looking under the hood, DIM
+
+```{r underhood-dim, height=6, echo=FALSE}
+sim.out <- diagnosis$simulations 
+hist(sim.out$estimate[sim.out$estimator=="DIM"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(1,2), cex=24)
+abline(v=1.5, lwd=3, col="red") #Why are both of the distributions for DIM and DIM the same?
+```
+
+## Looking under the hood, DID
+
+```{r underhood-did, height=6, echo=FALSE}
+sim.out <- diagnosis$simulations 
+hist(sim.out$estimate[sim.out$estimator=="DID"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(1,2), cex=24)
+abline(v=1.5, lwd=3, col="red")
+```
+
+## modify_design()
+
+
+```{r more-sample}
+samp_size <- 100 #Redefining our sample size to 100 fisheries
+sampling2 <- 
+  declare_sampling(S = draw_rs(N=N, n=samp_size)) #Re-specifying sampling strategy.
+design2 <- population + potential_outcomes + sampling2 +
+          assigning + revealing + estimand + dim + did #Merging new sampling strategy into the DeclareDesign framework; note that all other features of the design (our estimators, randomization, etc.) remain unchanged.
+```
+
+## diagnose_design()
+
+Diagnosing the design with twice the sample size
+
+```{r diagnosis2}
+diagnosis2 <- diagnose_design(design2, sims=1000) #Diagnosing the design over 1000 simulations (to estimate bias and to calculate power.)
+diagnosis2$diagnosands_df[,c(1,3,5,9,11)] %>%
+  kable()
+
+diagnosis2
+```
+
+
+## Looking under the hood, DIM
+
+```{r underhood-dim2, height=6, echo=FALSE}
+sim.out <- diagnosis2$simulations
+hist(sim.out$estimate[sim.out$estimator=="DIM"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(1,2), cex=24)
+abline(v=1.5, lwd=3, col="red")
+```
+
+## Looking under the hood, DID
+
+```{r underhood-did2, height=6, echo=FALSE}
+sim.out <- diagnosis2$simulations
+hist(sim.out$estimate[sim.out$estimator=="DID"],
+     main="Randomization Distribution",
+     xlab="Estimates in Realized Experiments",
+     xlim=c(1,2), cex=24)
+abline(v=1.5, lwd=3, col="red")
+```
+
+## redesign()
+What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
+```{r other-sample-sizes1}
+diagnoses <- design %>% 
+  redesign(samp_size=seq(10,100,5)) %>% 
+  diagnose_design(sims=150)
+
+diagnoses
+```
+
+## redesign()
+What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
+```{r other-sample-sizes2, height=6, echo=FALSE}
+diagnoses$diagnosands_df %>% 
+  ggplot(aes(x=samp_size,y=power)) +
+  geom_hline(aes(yintercept=1), lty="dotted", col="red", size=0.5) +
+  geom_point() +
+  scale_y_continuous(limits=c(0, 2)) +
+  theme(text=element_text(size=13)) +
+  facet_grid(.~estimator)
+```
+
+
+## redesign()
+How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
+```{r other-mde1}
+diagnoses2 <- design %>% 
+  redesign(eff_size=seq(0.1, 1.5, 0.1)) %>% 
+  diagnose_design(sims=250)
+```
+
+## redesign()
+How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
+```{r other-mde2, height=6, echo=FALSE}
+diagnoses2$diagnosands_df %>% # trouble here
+  ggplot(aes(x=eff_size,y=power)) +
+  geom_hline(aes(yintercept=0.8), lty="dotted", col="red", size=0.5) +
+  geom_point() +
+  scale_y_continuous(limits=c(0, 2)) +
+  theme(text=element_text(size=13)) +
+  facet_grid(.~estimator)
