@@ -100,7 +100,7 @@ kable(po[1:5,], digits=1)
 
 ## declare_sampling()
 
-Next, we want to select the sample size. Let's start with 100 villages (recall that the actual study used 120 villages)
+Next, we want to select the sample size. Let's start with 100 waterways 
 
 ```{r sample, echo=TRUE}
 samp_size <- 100 #PH: Start with a sample size of 100.
@@ -189,6 +189,8 @@ At this stage, we can calculate various features of the design that we have spec
 diagnosis <- diagnose_design(design, sims=1000) #PH: Diagnosing the design over 1000 simulations (to estimate bias and to calculate power.)
 diagnosis$diagnosands_df[,c(1,3,5,9,11)] %>%
   kable() #PH: Note that the DiM estimator has much less power than the DiD estimator. What does that suggest about the spread of the randomization distributions underlying both estimation strategies?
+
+diagnosis
 ```
 
 
@@ -219,7 +221,7 @@ abline(v=-0.19, lwd=3, col="red")
 That's not enough power. Let's increase the sample size.
 
 ```{r more-sample}
-samp_size <- 100 #PH: Redefining our sample size to 100 waterways
+samp_size <- 200 #PH: Redefining our sample size to 200 waterways
 sampling2 <- 
   declare_sampling(S = draw_rs(N=N, n=samp_size)) #PH: Re-specifying sampling strategy.
 design2 <- population + potential_outcomes + sampling2 +
@@ -234,6 +236,8 @@ Diagnosing the design with twice the sample size
 diagnosis2 <- diagnose_design(design2, sims=1000) #PH: Diagnosing the design over 1000 simulations (to estimate bias and to calculate power.)
 diagnosis2$diagnosands_df[,c(1,3,5,9,11)] %>%
   kable()
+
+diagnosis2
 ```
 
 
@@ -263,8 +267,10 @@ abline(v=-0.19, lwd=3, col="red")
 What is the minimum sample size required to conduct a sufficiently powered evaluation using each estimator?
 ```{r other-sample-sizes1}
 diagnoses <- design %>% 
-  redesign(samp_size=seq(20,100,20)) %>% 
+  redesign(samp_size=seq(20,500,20)) %>% 
   diagnose_design(sims=150)
+
+diagnoses
 ```
 
 ## redesign()
