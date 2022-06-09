@@ -13,19 +13,6 @@ library(ggplot2)
 library(kableExtra)
 ```
 
-## Declare_population()
-
-```{r population, echo=TRUE}
-set.seed(228) #Setting seed for randomization
-population <- declare_population(
-  village = add_level(N=500, #The population consists of 500 waterways.
-    water_quality_index=rtruncnorm(n=N, a=0.38, b=8.21, 
-                            mean=1.1, sd=0.1), 
-    u=rnorm(n=N, mean=-13.4, sd=13.4)) #waterway-level variability (for calculating the treatment effect
-)
-```
-
-# from coding demo
 
 ## Preliminaries
 
@@ -40,15 +27,6 @@ library(knitr)
 library(ggplot2)
 library(kableExtra)
 ```
-
-## Existing knowledge about outcome data, descriptives
-
-![Jayachandran et al. 2017, Table 1](./figures/11-tab1.png){height=60%}
-
-## Existing knowledge about outcome data, impact
-
-![Jayachandran et al. 2017, Table 3](./figures/11-tab3.png){height=50%}
-
 
 ## declare_population()
 
@@ -270,7 +248,7 @@ diagnoses <- design %>%
   redesign(samp_size=seq(20,500,20)) %>% 
   diagnose_design(sims=150)
 
-diagnoses
+diagnoses # Looking at DID, to get a power of 0.8, you need a sample size of 230; to get a power of 0.95, you need a sample size of 410-420.
 ```
 
 ## redesign()
@@ -290,8 +268,10 @@ diagnoses$diagnosands_df %>%
 How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
 ```{r other-mde1}
 diagnoses2 <- design %>% 
-  redesign(eff_size=seq(0.1, 2, 0.1)) %>% 
+  redesign(eff_size=seq(-1, 1, 0.1)) %>% 
   diagnose_design(sims=250)
+
+diagnoses2
 ```
 
 ## redesign()
@@ -305,3 +285,10 @@ diagnoses2$diagnosands_df %>% # trouble here
   theme(text=element_text(size=13)) +
   facet_grid(.~estimator)
 ```
+
+## Most polluted waterways calculations
+
+```{r}
+
+```
+
