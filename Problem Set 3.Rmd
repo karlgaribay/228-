@@ -151,8 +151,8 @@ sim.out <- diagnosis$simulations
 hist(sim.out$estimate[sim.out$estimator=="DIM"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(1,2), cex=24)
-abline(v=1.5, lwd=3, col="red") #Why are both of the distributions for DIM and DIM the same?
+     xlim=c(-0.1,0.4), cex=24)
+abline(v=0.15, lwd=3, col="red") #Why are both of the distributions for DIM and DIM the same?
 ```
 
 ## Looking under the hood, DID
@@ -162,8 +162,8 @@ sim.out <- diagnosis$simulations
 hist(sim.out$estimate[sim.out$estimator=="DID"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(1,2), cex=24)
-abline(v=1.5, lwd=3, col="red")
+     xlim=c(0,0.3), cex=24)
+abline(v=0.15, lwd=3, col="red")
 ```
 
 ## modify_design()
@@ -197,8 +197,8 @@ sim.out <- diagnosis2$simulations
 hist(sim.out$estimate[sim.out$estimator=="DIM"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(1,2), cex=24)
-abline(v=1.5, lwd=3, col="red")
+     xlim=c(0,0.3), cex=24)
+abline(v=0.15, lwd=3, col="red")
 ```
 
 ## Looking under the hood, DID
@@ -208,8 +208,8 @@ sim.out <- diagnosis2$simulations
 hist(sim.out$estimate[sim.out$estimator=="DID"],
      main="Randomization Distribution",
      xlab="Estimates in Realized Experiments",
-     xlim=c(1,2), cex=24)
-abline(v=1.5, lwd=3, col="red")
+     xlim=c(0,0.3), cex=24)
+abline(v=0.15, lwd=3, col="red")
 ```
 
 ## redesign()
@@ -246,7 +246,7 @@ diagnoses2 <- design %>%
 ## redesign()
 How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
 ```{r other-mde2, height=6, echo=FALSE}
-diagnoses2$diagnosands_df %>% # trouble here
+diagnoses2$diagnosands_df %>% 
   ggplot(aes(x=eff_size,y=power)) +
   geom_hline(aes(yintercept=0.8), lty="dotted", col="red", size=0.5) +
   geom_point() +
