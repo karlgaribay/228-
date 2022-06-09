@@ -37,7 +37,7 @@ hist(pop[,2], xlab="Baseline Fishery Performance",
 
 
 ```{r po, echo=TRUE}
-eff_size <- 1.5 #We believe the treated fisheries will have an FPI score that is higher by 1.5 than the control fisheries. Thus, the ATE = 1.5.
+eff_size <- 0.15 #We believe the treated fisheries will have an FPI score that is higher by 1.5 than the control fisheries. Thus, the ATE = 1.5.
 potential_outcomes <- 
   declare_potential_outcomes(
     Y_D_0=fpi + u,
@@ -239,7 +239,7 @@ diagnoses$diagnosands_df %>%
 How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
 ```{r other-mde1}
 diagnoses2 <- design %>% 
-  redesign(eff_size=seq(0.1, 1.5, 0.1)) %>% 
+  redesign(eff_size=seq(0.1, 0.15, 0.1)) %>% 
   diagnose_design(sims=250)
 ```
 
@@ -253,3 +253,4 @@ diagnoses2$diagnosands_df %>% # trouble here
   scale_y_continuous(limits=c(0, 2)) +
   theme(text=element_text(size=13)) +
   facet_grid(.~estimator)
+```
