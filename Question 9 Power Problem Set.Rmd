@@ -253,10 +253,10 @@ diagnoses$diagnosands_df %>%
 How strong does treatment need to be for our evaluation to be sufficiently powered, given a fixed sample size of 100?
 ```{r other-mde1}
 diagnoses2 <- design %>% 
-  redesign(eff_size=seq(-0.9, 0.9, 0.05)) %>% 
+  redesign(eff_size=seq(-0.9, 0.9, 0.1)) %>% 
   diagnose_design(sims=250)
 
-diagnoses2
+diagnoses2 #the minimum treatment effect that can be detected at a power of 0.8 for DIM is between -/+ 0.85; and for DID is -/+ 0.38
 ```
 
 ## redesign()
